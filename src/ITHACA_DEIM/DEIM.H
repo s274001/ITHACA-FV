@@ -317,5 +317,4 @@ class DEIM
         /// @param      newxyz          The new xyz coordinates in case of a volVectorField. In case of a volScalarField needs to be of the same dimension of magicPoints and full or zeros
         ///
         void setMagicPoints(labelList& newMagicPoints, labelList& newxyz);
-
 };

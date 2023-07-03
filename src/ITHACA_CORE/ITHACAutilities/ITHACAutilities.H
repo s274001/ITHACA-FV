@@ -124,7 +124,5 @@ bool isTurbulent();
 ///
 template<typename T>
 List<T> combineList(List<List<T>>& doubleList);
-
-
 };
 #endif

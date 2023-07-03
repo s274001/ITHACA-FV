@@ -45,10 +45,10 @@ Eigen::VectorXd Foam2Eigen::field2Eigen(
 
     for (label l = 0; l < field.size(); l++)
     {
-      for (label j = 0; j < 9; j++)
-      {
-          out(j * field.size() + l) = field[l][j];
-      }
+        for (label j = 0; j < 9; j++)
+        {
+            out(j * field.size() + l) = field[l][j];
+        }
     }
 
     return out;
@@ -66,10 +66,10 @@ Eigen::VectorXd Foam2Eigen::field2Eigen(
 
     for (label l = 0; l < field.size(); l++)
     {
-      for (label j = 0; j < 3; j++)
-      {
-          out(j * field.size() + l) = field[l][j];
-      }
+        for (label j = 0; j < 3; j++)
+        {
+            out(j * field.size() + l) = field[l][j];
+        }
     }
 
     return out;
@@ -93,16 +93,39 @@ Eigen::VectorXd Foam2Eigen::field2Eigen(
     return out;
 }
 
-template <template <class> class PatchField, class GeoMesh>
+template <>
 Eigen::Map<Eigen::MatrixXd> Foam2Eigen::field2EigenMap(
-    GeometricField<scalar, PatchField, GeoMesh>& field)
+    volScalarField& field)
 {
     Eigen::Map<Eigen::MatrixXd> output(field.ref().data(), field.size(), 1);
     return std::move(output);
 }
 
+template <>
+Eigen::Map<Eigen::MatrixXd> Foam2Eigen::field2EigenMap(
+    volVectorField& field)
+{
+    Eigen::Map<Eigen::MatrixXd> output(&field.ref()[0][0], 3, field.size());
+    return std::move(output);
+}
+
+template <>
+Eigen::Map<Eigen::MatrixXd> Foam2Eigen::field2EigenMap(
+    surfaceScalarField& field)
+{
+    Eigen::Map<Eigen::MatrixXd> output(&field.ref()[0], field.size(), 1);
+    return std::move(output);
+}
+
 template Eigen::Map<Eigen::MatrixXd> Foam2Eigen::field2EigenMap(
     volScalarField& field);
+
+template Eigen::Map<Eigen::MatrixXd> Foam2Eigen::field2EigenMap(
+    volVectorField& field);
+
+template Eigen::Map<Eigen::MatrixXd> Foam2Eigen::field2EigenMap(
+    surfaceScalarField& field);
+
 
 template Eigen::VectorXd Foam2Eigen::field2Eigen(
     volScalarField& field);
@@ -131,10 +154,10 @@ Eigen::VectorXd Foam2Eigen::field2Eigen(const Field<vector>& field)
 
     for (label l = 0; l < field.size(); l++)
     {
-      for (label j = 0; j < 3; j++)
-      {
-          out(j * field.size() + l) = field[l][j];
-      }
+        for (label j = 0; j < 3; j++)
+        {
+            out(j * field.size() + l) = field[l][j];
+        }
     }
 
     return out;
@@ -148,10 +171,10 @@ Eigen::VectorXd Foam2Eigen::field2Eigen(const Field<tensor>& field)
 
     for (label l = 0; l < field.size(); l++)
     {
-      for (label j = 0; j < 9; j++)
-      {
-          out(j * field.size() + l) = field[l][j];
-      }
+        for (label j = 0; j < 9; j++)
+        {
+            out(j * field.size() + l) = field[l][j];
+        }
     }
 
     return out;
@@ -198,7 +221,7 @@ List<Eigen::VectorXd> Foam2Eigen::field2EigenBC(
 }
 
 template List<Eigen::VectorXd> Foam2Eigen::field2EigenBC(
-  volTensorField& field);
+    volTensorField& field);
 
 template <template <class> class PatchField, class GeoMesh>
 List<Eigen::VectorXd> Foam2Eigen::field2EigenBC(
@@ -404,10 +427,10 @@ GeometricField<tensor, PatchField, GeoMesh> Foam2Eigen::Eigen2field(
 
     for (auto i = 0; i < field_out.size(); i++)
     {
-      for (label j = 0; j < 9; j++)
-      {
-          field_out.ref()[i][j] = eigen_vector(i + field_out.size() * j);
-      }
+        for (label j = 0; j < 9; j++)
+        {
+            field_out.ref()[i][j] = eigen_vector(i + field_out.size() * j);
+        }
     }
 
     if (correctBC)
@@ -430,10 +453,10 @@ GeometricField<vector, PatchField, GeoMesh> Foam2Eigen::Eigen2field(
 
     for (auto i = 0; i < field_out.size(); i++)
     {
-      for (label j = 0; j < 3; j++)
-      {
-          field_out.ref()[i][j] = eigen_vector(i + field_out.size() * j);
-      }
+        for (label j = 0; j < 3; j++)
+        {
+            field_out.ref()[i][j] = eigen_vector(i + field_out.size() * j);
+        }
     }
 
     if (correctBC)
@@ -1209,10 +1232,10 @@ Eigen::MatrixXd Foam2Eigen::field2Eigen(const List<vector>& field)
 
     for (label l = 0; l < field.size(); l++)
     {
-      for (label j = 0; j < 3; j++)
-      {
-          out(j * field.size() + l, 0) = field[l][j];
-      }
+        for (label j = 0; j < 3; j++)
+        {
+            out(j * field.size() + l, 0) = field[l][j];
+        }
     }
 
     return out;

@@ -1,5 +1,6 @@
 reductionProblem/reductionProblem.C
 steadyNS/steadyNS.C
+SteadyNSResMin/SteadyNSResMin.C
 SteadyNSTurb/SteadyNSTurb.C
 Burgers/Burgers.C
 UnsteadyProblem/UnsteadyProblem.C
