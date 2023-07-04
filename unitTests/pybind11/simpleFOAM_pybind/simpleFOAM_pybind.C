@@ -95,6 +95,11 @@ public:
         offline = ITHACAutilities::check_off();
         podex = ITHACAutilities::check_pod();
         supex = ITHACAutilities::check_sup();
+        // Eigen::VectorXd out = Foam2Eigen::field2Eigen(_U());
+        // out(1) = 1000;
+        // std::cout << out << std::endl;
+        // Info << _U() << endl;
+        // exit(0);
     }
     ~simpleFOAM_pybind() {};
     Eigen::Map<Eigen::MatrixXd> getU()
@@ -126,6 +131,71 @@ public:
     {
         Info << _phi() << endl;
     }
+    void setU(Eigen::VectorXd U)
+    {
+        _U() = Foam2Eigen::Eigen2field(_U(), U);
+    }
+    void setP(Eigen::VectorXd p)
+    {
+        _p() = Foam2Eigen::Eigen2field(_p(), p);
+    }
+    
+    Eigen::VectorXd getResidual()
+    {
+        Time& runTime = _runTime();
+        fvMesh& mesh = _mesh();
+        surfaceScalarField& phi = _phi();
+        volVectorField& U = _U();
+        volScalarField& p = _p();
+        fv::options& fvOptions = _fvOptions();
+        simpleControl& simple = _simple();
+        IOMRFZoneList& MRF = _MRF();
+        singlePhaseTransportModel& laminarTransport = _laminarTransport();
+        this->turbulence->validate();
+        MRF.correctBoundaryVelocity(U);
+        tmp<fvVectorMatrix> tUEqn
+        (
+            fvm::div(phi, U)
+            + MRF.DDt(U) //non c'è
+            + turbulence->divDevReff(U)
+            ==
+            fvOptions(U)    // non c'è
+            - fvc::grad(p)
+        );
+        fvVectorMatrix& UEqn = tUEqn.ref();
+        Foam::vectorField tres = UEqn.residual();
+        Eigen::VectorXd resU = Foam2Eigen::field2Eigen(tres);
+        tmp<fvVectorMatrix> tUEqn2(UEqn == fvc::grad(p));
+        fvVectorMatrix& UEqn2 = tUEqn2.ref();
+        UEqn2.relax();
+        dimensionedScalar small("small", dimensionSet(0, 0, -1, 0, 0, 0, 0), 1e-18);
+        volScalarField rAU(1.0 / UEqn2.A());
+        volVectorField HbyA(constrainHbyA(rAU * UEqn2.H(), U, p));
+        surfaceScalarField phiHbyA("phiHbyA", fvc::flux(HbyA));
+        MRF.makeRelative(phiHbyA);
+        adjustPhi(phiHbyA, U, p);
+        tmp<volScalarField> rAtU(rAU);
+
+        if (simple.consistent())
+        {
+            rAtU = 1.0 / (1.0 / rAU - UEqn2.H1());
+            phiHbyA +=
+                fvc::interpolate(rAtU() - rAU) * fvc::snGrad(p) * mesh.magSf();
+            HbyA -= (rAU - rAtU()) * fvc::grad(p);
+        }
+
+        constrainPressure(p, U, phiHbyA, rAtU(), MRF);
+        fvScalarMatrix pEqn
+        (
+            fvm::laplacian(rAtU(), p) == fvc::div(phiHbyA)
+        );
+        Foam::scalarField tpres = pEqn.residual();
+        Eigen::VectorXd resP = Foam2Eigen::field2Eigen(tpres);
+        Eigen::VectorXd res(resU.size() + resP.size());
+        res << resU, resP;
+        std::cerr << res.norm() << std::endl;
+        return res;
+    }
 };
 
 
@@ -147,5 +217,9 @@ PYBIND11_MODULE(simpleFOAM_pybind, m)
     .def("getPhi", &simpleFOAM_pybind::getP, py::return_value_policy::reference_internal)
     .def("printU", &simpleFOAM_pybind::printU)
     .def("printP", &simpleFOAM_pybind::printP)
-    .def("printPhi", &simpleFOAM_pybind::printPhi);
+    .def("printPhi", &simpleFOAM_pybind::printPhi)
+    .def("getResidual", &simpleFOAM_pybind::getResidual, py::return_value_policy::reference_internal)
+    .def("setU", &simpleFOAM_pybind::setU, py::return_value_policy::reference_internal)
+    .def("setP", &simpleFOAM_pybind::setP, py::return_value_policy::reference_internal);
+
 }
