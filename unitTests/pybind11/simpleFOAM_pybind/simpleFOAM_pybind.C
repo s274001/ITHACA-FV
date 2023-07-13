@@ -54,6 +54,9 @@ namespace py = pybind11;
 class simpleFOAM_pybind : public steadyNS
 {
 public:
+    scalar residual = 1;
+    scalar uresidual = 1;
+    scalar presidual = 1;
     simpleFOAM_pybind(int argc, char* argv[])
     {
         _args = autoPtr<argList>(
@@ -95,11 +98,6 @@ public:
         offline = ITHACAutilities::check_off();
         podex = ITHACAutilities::check_pod();
         supex = ITHACAutilities::check_sup();
-        // Eigen::VectorXd out = Foam2Eigen::field2Eigen(_U());
-        // out(1) = 1000;
-        // std::cout << out << std::endl;
-        // Info << _U() << endl;
-        // exit(0);
     }
     ~simpleFOAM_pybind() {};
     Eigen::Map<Eigen::MatrixXd> getU()
@@ -139,7 +137,7 @@ public:
     {
         _p() = Foam2Eigen::Eigen2field(_p(), p);
     }
-    
+
     Eigen::VectorXd getResidual()
     {
         Time& runTime = _runTime();
@@ -193,8 +191,73 @@ public:
         Eigen::VectorXd resP = Foam2Eigen::field2Eigen(tpres);
         Eigen::VectorXd res(resU.size() + resP.size());
         res << resU, resP;
-        std::cerr << res.norm() << std::endl;
         return res;
+    }
+    void solveOneStep()
+    {
+        _simple().loop();
+        Vector<double> uresidual_v(0, 0, 0);
+        scalar csolve = 0;
+
+// Variable that can be changed
+        turbulence->read();
+        std::ofstream res_os;
+        res_os.open("./ITHACAoutput/Offline/residuals", std::ios_base::app);
+        Info << "Time = " << _runTime().timeName() << nl << endl;
+        {
+#include "UEqn.H"
+#include "pEqn.H"
+            scalar C = 0;
+
+            for (label i = 0; i < 3; i++)
+            {
+                if (C < uresidual_v[i])
+                {
+                    C = uresidual_v[i];
+                }
+            }
+
+            uresidual = C;
+            residual = max(presidual, uresidual);
+            Info << "\nResidual: " << residual << endl << endl;
+        }
+        _laminarTransport().correct();
+        turbulence->correct();
+        csolve = csolve + 1;
+        Info << "ExecutionTime = " << _runTime().elapsedCpuTime() << " s"
+             << "  ClockTime = " << _runTime().elapsedClockTime() << " s"
+             << nl << endl;
+    }
+    scalar getResP()
+    {
+        return presidual;
+    }
+    scalar getResU()
+    {
+        return uresidual;
+    }
+    scalar getRes()
+    {
+        return residual;
+    }
+    void restart()
+    {
+        steadyNS::restart();
+        residual = 1;
+        uresidual = 1;
+        presidual = 1;
+    }
+    void exportU(std::string& subFolder, std::string& folder, std::string& fieldname)
+    {
+        ITHACAstream::exportSolution(_U(), subFolder, folder, fieldname);
+    }
+    void exportP(std::string& subFolder, std::string& folder, std::string& fieldname)
+    {
+        ITHACAstream::exportSolution(_p(), subFolder, folder, fieldname);
+    }
+    void changeViscosity(scalar viscosity)
+    {
+        change_viscosity(viscosity);
     }
 };
 
@@ -218,8 +281,16 @@ PYBIND11_MODULE(simpleFOAM_pybind, m)
     .def("printU", &simpleFOAM_pybind::printU)
     .def("printP", &simpleFOAM_pybind::printP)
     .def("printPhi", &simpleFOAM_pybind::printPhi)
+    .def("solveOneStep", &simpleFOAM_pybind::solveOneStep)
     .def("getResidual", &simpleFOAM_pybind::getResidual, py::return_value_policy::reference_internal)
     .def("setU", &simpleFOAM_pybind::setU, py::return_value_policy::reference_internal)
-    .def("setP", &simpleFOAM_pybind::setP, py::return_value_policy::reference_internal);
-
+    .def("setP", &simpleFOAM_pybind::setP, py::return_value_policy::reference_internal)
+    .def("restart", &simpleFOAM_pybind::restart)
+    .def("getResU", &simpleFOAM_pybind::getResU)
+    .def("getResP", &simpleFOAM_pybind::getResP)
+    .def("getRes", &simpleFOAM_pybind::getRes)
+    .def("exportU", &simpleFOAM_pybind::exportU)
+    .def("exportP", &simpleFOAM_pybind::exportP)
+    .def("changeViscosity", &simpleFOAM_pybind::changeViscosity)
+    ;
 }
