@@ -84,6 +84,7 @@
         "typeindex": "c",
         "typeinfo": "c",
         "valarray": "c",
-        "variant": "c"
+        "variant": "c",
+        "22collocation_U.C": "cpp"
     }
 }

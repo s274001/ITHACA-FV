@@ -26,7 +26,6 @@ Description
 SourceFiles
 \*---------------------------------------------------------------------------*/
 
-
 #include "fvCFD.H"
 #include "IOmanip.H"
 #include "Time.H"
@@ -42,7 +41,7 @@ SourceFiles
 #include <Eigen/Dense>
 #include "iostream"
 #include "Foam2Eigen.H"
-
+#include "DEIM.H"
 #if PY_VERSION_HEX < 0x03000000
 #define MyPyText_AsString PyString_AsString
 #else
@@ -50,6 +49,14 @@ SourceFiles
 #endif
 
 namespace py = pybind11;
+
+class DEIM_function : public DEIM<volScalarField>
+{
+    public:
+        using DEIM::DEIM;
+        PtrList<volScalarField> fields;
+        autoPtr<volScalarField> subField;
+};
 
 class simpleFOAM_pybind : public steadyNS
 {
@@ -99,6 +106,7 @@ public:
         podex = ITHACAutilities::check_pod();
         supex = ITHACAutilities::check_sup();
     }
+
     ~simpleFOAM_pybind() {};
     Eigen::Map<Eigen::MatrixXd> getU()
     {
@@ -115,12 +123,10 @@ public:
         Eigen::Map<Eigen::MatrixXd> Phieig(Foam2Eigen::field2EigenMap(_phi()));
         return std::move(Phieig);
     }
-
     void printU()
     {
         Info << _U() << endl;
     }
-
     void printP()
     {
         Info << _p() << endl;
@@ -137,7 +143,6 @@ public:
     {
         _p() = Foam2Eigen::Eigen2field(_p(), p);
     }
-
     Eigen::VectorXd getResidual()
     {
         Time& runTime = _runTime();
@@ -260,7 +265,6 @@ public:
         change_viscosity(viscosity);
     }
 };
-
 
 PYBIND11_MODULE(simpleFOAM_pybind, m)
 {
