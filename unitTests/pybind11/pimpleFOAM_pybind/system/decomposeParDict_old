@@ -1,7 +1,7 @@
 /*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
 | \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
-|  \\    /   O peration     | Version:  5.0                                   |
+|  \\    /   O peration     | Version:  4.x                                   |
 |   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
 |    \\/     M anipulation  |                                                 |
 \*---------------------------------------------------------------------------*/
@@ -9,43 +9,33 @@ FoamFile
 {
     version     2.0;
     format      ascii;
-    class       volScalarField;
-    location    "41.8500000000178005";
-    object      p;
+    class       dictionary;
+    object      decomposeParDict;
 }
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-dimensions      [0 2 -2 0 0 0 0];
+numberOfSubdomains 6;
 
-internalField   uniform 0;
+method          simple;
+// method          ptscotch;
 
-boundaryField
+simpleCoeffs
 {
-    inlet
-    {
-        type            zeroGradient;
-    }
-    outlet
-    {
-        type            fixedValue;
-        value           uniform 0;
-    }
-    down
-    {
-        type            empty;
-    }
-    up
-    {
-        type            empty;
-    }
-    sides
-    {
-        type            zeroGradient;
-    }
-    cylinder1
-    {
-        type            zeroGradient;
-    }
+    n               (6 1 1);
+    delta           0.001;
+}
+
+hierarchicalCoeffs
+{
+    n               (3 2 1);
+    delta           0.001;
+    order           xyz;
+}
+
+manualCoeffs
+{
+    dataFile        "cellDecomposition";
 }
 
 

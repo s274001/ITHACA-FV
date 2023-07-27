@@ -28,7 +28,7 @@ Info << "Reading field p\n" << endl;
 Info << runTime.timeName() << endl;
 _p = autoPtr<volScalarField>
 	(
-		new volScalarField p
+		new volScalarField
 		(
     		IOobject
     		(
@@ -52,7 +52,7 @@ _p0 = autoPtr<volScalarField>
 
 
 Info<< "Reading field U\n" << endl;
-_U = autoPtr<volVectorField U>
+_U = autoPtr<volVectorField>
 	(
     	new volVectorField
 		(
@@ -78,7 +78,6 @@ _U0 = autoPtr<volVectorField>
 
 #include "createPhi.H"
 
-
 label pRefCell = 0;
 scalar pRefValue = 0.0;
 setRefCell(p, pimple.dict(), pRefCell, pRefValue);
@@ -88,7 +87,7 @@ _laminarTransport = autoPtr<singlePhaseTransportModel>
 					(
 					 	new singlePhaseTransportModel(U, phi)
 					);
-singlePhaseTransportModel& laminarTransport = _laminarTransport()
+singlePhaseTransportModel& laminarTransport = _laminarTransport();
 
 
 turbulence = autoPtr<incompressible::turbulenceModel>

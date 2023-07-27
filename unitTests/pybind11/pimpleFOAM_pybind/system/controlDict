@@ -1,13 +1,16 @@
 /*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
 | \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
-|  \\    /   O peration     | Version:  2.4.0                                 |
+|  \\    /   O peration     | Version:  3.0.x                                 |
 |   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
 |    \\/     M anipulation  |                                                 |
+|*---------------------------------------------------------------------------*|
+|  File created by CFD support s.r.o., Wed Jan 25 11:27:58 2017               |
+|                    http://www.cdfsupport.com                                |
 \*---------------------------------------------------------------------------*/
 FoamFile
 {
-    version     2.0;
+    version     3.0;
     format      ascii;
     class       dictionary;
     location    "system";
@@ -15,7 +18,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     simpleFoam;
+application     pimpleFoam;
 
 startFrom       startTime;
 
@@ -23,13 +26,13 @@ startTime       0;
 
 stopAt          endTime;
 
-endTime         10000000;
+endTime         25;
 
-deltaT          1;
+deltaT          0.0002;
 
-writeControl    timeStep;
+writeControl    adjustableRunTime;
 
-writeInterval   10000000;
+writeInterval   0.004;
 
 purgeWrite      0;
 
@@ -41,9 +44,16 @@ writeCompression off;
 
 timeFormat      general;
 
-timePrecision   6;
+timePrecision   8;
 
 runTimeModifiable true;
 
+adjustTimeStep  false;
 
+maxCo           0.9;
+
+functions
+{
+  #include "forceCoeffs"
+}
 // ************************************************************************* //

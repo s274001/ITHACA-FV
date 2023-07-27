@@ -1,7 +1,7 @@
 /*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
 | \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
-|  \\    /   O peration     | Version:  5.0                                   |
+|  \\    /   O peration     | Version:  2.4.0                                 |
 |   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
 |    \\/     M anipulation  |                                                 |
 \*---------------------------------------------------------------------------*/
@@ -9,44 +9,14 @@ FoamFile
 {
     version     2.0;
     format      ascii;
-    class       volScalarField;
-    location    "41.8500000000178005";
-    object      p;
+    class       dictionary;
+    object      meshQualityDict;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-dimensions      [0 2 -2 0 0 0 0];
+#includeEtc "caseDicts/mesh/generation/meshQualityDict.cfg"
 
-internalField   uniform 0;
-
-boundaryField
-{
-    inlet
-    {
-        type            zeroGradient;
-    }
-    outlet
-    {
-        type            fixedValue;
-        value           uniform 0;
-    }
-    down
-    {
-        type            empty;
-    }
-    up
-    {
-        type            empty;
-    }
-    sides
-    {
-        type            zeroGradient;
-    }
-    cylinder1
-    {
-        type            zeroGradient;
-    }
-}
-
+//- minFaceWeight (0 -> 0.5)
+//minFaceWeight 0.02;
 
 // ************************************************************************* //

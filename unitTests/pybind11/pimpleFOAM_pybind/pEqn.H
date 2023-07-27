@@ -27,19 +27,28 @@
     volVectorField HbyA(constrainHbyA(rAU * UEqn.H(), _U(), _p()));
     surfaceScalarField phiHbyA("phiHbyA", fvc::flux(HbyA));
 
-	if (_pimple.ddtCorr())
-	{
-		phiHbyA += MRF.zeroFilter(fvc::interpolate(rAU)*fvc::ddtCorr(_U(), _phi(), Uf));
-	}
-	else
-	{
-		phiHybA += MRF.zeroFilter(fvc::interpolate(rAU));
-	}
+//	if (_pimple().ddtCorr())
+//	{
+//		phiHbyA += _MRF().zeroFilter(fvc::interpolate(rAU)*fvc::ddtCorr(_U(), _phi(), Uf));
+//	}
+//	else
+//	{
+//		phiHbyA += _MRF().zeroFilter(fvc::interpolate(rAU));
+//	}
+	phiHbyA += _MRF().zeroFilter(fvc::interpolate(rAU));
     _MRF().makeRelative(phiHbyA);
 
     adjustPhi(phiHbyA, _U(), _p());
 
-    tmp<volScalarField> rAtU(rAU);
+
+	if (_p().needReference())
+	{
+		fvc::makeRelative(phiHbyA, _U());
+		adjustPhi(phiHbyA, _U(), _p());
+		fvc::makeAbsolute(phiHbyA, _U());
+	}
+
+	tmp<volScalarField> rAtU(rAU);
 
     if (_pimple().consistent())
     {
@@ -48,14 +57,13 @@
         fvc::interpolate(rAtU() - rAU) * fvc::snGrad(_p()) * _mesh().magSf();
         HbyA -= (rAU - rAtU()) * fvc::grad(_p());
     }
-	if (_pimple.nCorrPISO() <= 1)
+	if (_pimple().nCorrPISO() <= 1)
 	{
 		tUEqn.clear();
 	}
 
     // Update the pressure BCs to ensure flux consistency
     constrainPressure(_p(), _U(), phiHbyA, rAtU(), _MRF());
-    label i = 0;
     // Non-orthogonal pressure corrector loop
     while (_pimple().correctNonOrthogonal())
     {
@@ -64,22 +72,12 @@
             fvm::laplacian(rAtU(), _p()) == fvc::div(phiHbyA)
         );
         pEqn.setReference(pRefCell, pRefValue);
-
-        if (i == 0)
-        {
-            presidual = pEqn.solve().initialResidual();
-        }
-        else
-        {
-            pEqn.solve().initialResidual();
-        }
+		pEqn.solve(_mesh().solver(_p().select(_pimple().finalInnerIter())));
 
         if (_pimple().finalNonOrthogonalIter())
         {
             _phi() = phiHbyA - pEqn.flux();
         }
-
-        i++;
     }
 
     volScalarField contErr(fvc::div(_phi()));
@@ -95,7 +93,6 @@
         << ", global = " << globalContErr
         << ", cumulative = " << cumulativeContErr
         << endl;
-
     // Explicitly relax pressure for momentum corrector
     _p().relax();
 
@@ -104,9 +101,9 @@
     _U().correctBoundaryConditions();
     _fvOptions().correct(_U());
 
-	// Correct Uf if the mesh is moving
-	fvc::correctUf(Uf, _U(), _phi());
+//	// Correct Uf if the mesh is moving
+//	fvc::correctUf(Uf, _U(), _phi());
 
-	// Make the fluxes relative to the mesh motion
-	fvc::makeRelative(_phi(), _U());
+//	// Make the fluxes relative to the mesh motion
+//	fvc::makeRelative(_phi(), _U());
 }

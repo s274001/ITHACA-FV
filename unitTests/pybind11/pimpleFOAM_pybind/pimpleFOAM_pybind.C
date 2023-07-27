@@ -27,6 +27,11 @@ SourceFiles
 \*---------------------------------------------------------------------------*/
 
 #include "fvCFD.H"
+#include "singlePhaseTransportModel.H"
+#include "turbulentTransportModel.H"
+#include "pimpleControl.H"
+#include "CorrectPhi.H"
+#include "fvOptions.H"
 #include "IOmanip.H"
 #include "Time.H"
 #include "steadyNS.H"
@@ -62,14 +67,15 @@ class DEIM_function : public DEIM<volScalarField>
 class pimpleFOAM_pybind : public UnsteadyNSTurb
 {
 public:
-    scalar residual = 1;
-    scalar uresidual = 1;
-    scalar presidual = 1;
+//    scalar residual = 1;
+//    scalar uresidual = 1;
+//    scalar presidual = 1;
     pimpleFOAM_pybind(int argc, char* argv[])
     {
         _args = autoPtr<argList>(
                     new argList(argc, argv, true, true, /*initialise=*/false));
         argList& args = _args();
+
 #include "createTime.H"
 #include "createMesh.H"
         _pimple = autoPtr<pimpleControl>
@@ -94,8 +100,8 @@ public:
                 IOobject::NO_WRITE
             )
         );
-        tolerance = ITHACAdict->lookupOrDefault<scalar>("tolerance", 1e-5);
-        maxIter = ITHACAdict->lookupOrDefault<scalar>("maxIter", 1000);
+//		tolerance = ITHACAdict->lookupOrDefault<scalar>("tolerance", 1e-5);
+		maxIter = ITHACAdict->lookupOrDefault<scalar>("maxIter", 1000);
         bcMethod = ITHACAdict->lookupOrDefault<word>("bcMethod", "penalty");
         M_Assert(bcMethod == "lift" || bcMethod == "penalty" || bcMethod == "none",
                  "The BC method must be set to lift or penalty or none in ITHACAdict");
@@ -144,131 +150,190 @@ public:
     {
         _p() = Foam2Eigen::Eigen2field(_p(), p);
     }
-    Eigen::VectorXd getResidual()
+//    Eigen::VectorXd getResidual()
+//    {
+//        Time& runTime = _runTime();
+//        fvMesh& mesh = _mesh();
+//        surfaceScalarField& phi = _phi();
+//        volVectorField& U = _U();
+//        volScalarField& p = _p();
+//        fv::options& fvOptions = _fvOptions();
+//        pimpleControl& pimple = _pimple();
+//        IOMRFZoneList& MRF = _MRF();
+//        singlePhaseTransportModel& laminarTransport = _laminarTransport();
+//		instantList Times = runTime.times();
+//		runTime.setEndTime(finalTime);
+//		// Perform a TruthSolve
+//		runTime.setTime(Times[1], 1);
+//		runTime.setDeltaT(timeStep);
+//		nextWrite = startTime;
+//        this->turbulence->validate();
+//        MRF.correctBoundaryVelocity(U);
+//        tmp<fvVectorMatrix> tUEqn
+//        (
+//			fvm::ddt(U)
+//            + fvm::div(phi, U)
+//            + MRF.DDt(U) //non c'è
+//            + turbulence->divDevReff(U)
+//            ==
+//            fvOptions(U)    // non c'è
+//            - fvc::grad(p)
+//        );
+//        fvVectorMatrix& UEqn = tUEqn.ref();
+//        Foam::vectorField tres = UEqn.residual();
+//        Eigen::VectorXd resU = Foam2Eigen::field2Eigen(tres);
+//        tmp<fvVectorMatrix> tUEqn2(UEqn == fvc::grad(p));
+//        fvVectorMatrix& UEqn2 = tUEqn2.ref();
+//        UEqn2.relax();
+//        dimensionedScalar small("small", dimensionSet(0, 0, -1, 0, 0, 0, 0), 1e-18);
+//        volScalarField rAU(1.0 / UEqn2.A());
+//        volVectorField HbyA(constrainHbyA(rAU * UEqn2.H(), U, p));
+//        surfaceScalarField phiHbyA("phiHbyA", fvc::flux(HbyA));
+//        MRF.makeRelative(phiHbyA);
+//        adjustPhi(phiHbyA, U, p);
+//        tmp<volScalarField> rAtU(rAU);
+//
+//        if (pimple.consistent())
+//        {
+//            rAtU = 1.0 / max(1.0 / rAU - UEqn2.H1(), 0.1/rAU);
+//            phiHbyA +=
+//                fvc::interpolate(rAtU() - rAU) * fvc::snGrad(p) * mesh.magSf();
+//            HbyA -= (rAU - rAtU()) * fvc::grad(p);
+//        }
+//		if (pimple.nCorrPISO() <= 1)
+//		{
+//			tUEqn.clear();
+//		}
+//        constrainPressure(p, U, phiHbyA, rAtU(), MRF);
+//        fvScalarMatrix pEqn
+//        (
+//            fvm::laplacian(rAtU(), p) == fvc::div(phiHbyA)
+//        );
+//        Foam::scalarField tpres = pEqn.residual();
+//        Eigen::VectorXd resP = Foam2Eigen::field2Eigen(tpres);
+//        Eigen::VectorXd res(resU.size() + resP.size());
+//        res << resU, resP;
+//        return res;
+//    }
+    void solveAll()
     {
-        Time& runTime = _runTime();
-        fvMesh& mesh = _mesh();
-        surfaceScalarField& phi = _phi();
-        volVectorField& U = _U();
-        volScalarField& p = _p();
-        fv::options& fvOptions = _fvOptions();
-        pimpleControl& pimple = _pimple();
-        IOMRFZoneList& MRF = _MRF();
-        singlePhaseTransportModel& laminarTransport = _laminarTransport();
-        this->turbulence->validate();
-        MRF.correctBoundaryVelocity(U);
-        tmp<fvVectorMatrix> tUEqn
-        (
-			fvm::ddt(U)
-            + fvm::div(phi, U)
-            + MRF.DDt(U) //non c'è
-            + turbulence->divDevReff(U)
-            ==
-            fvOptions(U)    // non c'è
-            - fvc::grad(p)
-        );
-        fvVectorMatrix& UEqn = tUEqn.ref();
-        Foam::vectorField tres = UEqn.residual();
-        Eigen::VectorXd resU = Foam2Eigen::field2Eigen(tres);
-        tmp<fvVectorMatrix> tUEqn2(UEqn == fvc::grad(p));
-        fvVectorMatrix& UEqn2 = tUEqn2.ref();
-        UEqn2.relax();
-        dimensionedScalar small("small", dimensionSet(0, 0, -1, 0, 0, 0, 0), 1e-18);
-        volScalarField rAU(1.0 / UEqn2.A());
-        volVectorField HbyA(constrainHbyA(rAU * UEqn2.H(), U, p));
-        surfaceScalarField phiHbyA("phiHbyA", fvc::flux(HbyA));
-        MRF.makeRelative(phiHbyA);
-        adjustPhi(phiHbyA, U, p);
-        tmp<volScalarField> rAtU(rAU);
+    #include "addCheckCaseOptions.H"
+    #include "CourantNo.H"
+	// set Delta T
+	_runTime().setDeltaT
+	(
+		_runTime().controlDict().getOrDefault<scalar>("deltaT", 0.0002)
+	);
 
-        if (pimple.consistent())
-        {
-            rAtU = 1.0 / max(1.0 / rAU - UEqn2.H1(), 0.1/rAU);
-            phiHbyA +=
-                fvc::interpolate(rAtU() - rAU) * fvc::snGrad(p) * mesh.magSf();
-            HbyA -= (rAU - rAtU()) * fvc::grad(p);
-        }
-		if (pimple.nCorrPISO() <= 1)
+
+
+		turbulence->read();
+		turbulence->validate();
+
+		Info<< "\nStarting time loop\n" << endl;
+
+		// Start the time loop
+		while (_runTime().run())
 		{
-			tUEqn.clear();
-		}
-        constrainPressure(p, U, phiHbyA, rAtU(), MRF);
-        fvScalarMatrix pEqn
-        (
-            fvm::laplacian(rAtU(), p) == fvc::div(phiHbyA)
-        );
-        Foam::scalarField tpres = pEqn.residual();
-        Eigen::VectorXd resP = Foam2Eigen::field2Eigen(tpres);
-        Eigen::VectorXd res(resU.size() + resP.size());
-        res << resU, resP;
-        return res;
-    }
-    void solveOneStep()
-    {
-        _pimple().loop();
-        Vector<double> uresidual_v(0, 0, 0);
-        scalar csolve = 0;
+			#include "readTimeControls.H"
+			#include "CourantNo.H"
+			// set Delta T
+			_runTime().setDeltaT
+			(
+				_runTime().controlDict().getOrDefault<scalar>("deltaT", 0.0002)
+			);
 
-// Variable that can be changed
-        turbulence->read();
-        std::ofstream res_os;
-        res_os.open("./ITHACAoutput/Offline/residuals", std::ios_base::app);
-        Info << "Time = " << _runTime().timeName() << nl << endl;
-        {
+			Info<< "Delta T = " << _runTime().deltaTValue() << nl << endl;
+
+			++_runTime();
+
+        	Info << "Time = " << _runTime().timeName() << nl << endl;
+
+			// Pressure-velocity PIMPLE corrector loop
+			_pimple().loop();
+			{
 #include "UEqn.H"
+				// Pressure corrector loop
+				_pimple().correct();
+				{
 #include "pEqn.H"
-            scalar C = 0;
-
-            for (label i = 0; i < 3; i++)
-            {
-                if (C < uresidual_v[i])
-                {
-                    C = uresidual_v[i];
-                }
-            }
-
-            uresidual = C;
-            residual = max(presidual, uresidual);
-            Info << "\nResidual: " << residual << endl << endl;
-        }
-        _laminarTransport().correct();
-        turbulence->correct();
-        csolve = csolve + 1;
-        Info << "ExecutionTime = " << _runTime().elapsedCpuTime() << " s"
+				}
+				_laminarTransport().correct();
+				turbulence->correct();
+			}
+        	Info << "ExecutionTime = " << _runTime().elapsedCpuTime() << " s"
              << "  ClockTime = " << _runTime().elapsedClockTime() << " s"
              << nl << endl;
-    }
-    scalar getResP()
-    {
-        return presidual;
-    }
-    scalar getResU()
-    {
-        return uresidual;
-    }
-    scalar getRes()
-    {
-        return residual;
-    }
-    void restart()
-    {
-        steadyNS::restart();
-        residual = 1;
-        uresidual = 1;
-        presidual = 1;
-    }
-    void exportU(std::string& subFolder, std::string& folder, std::string& fieldname)
-    {
-        ITHACAstream::exportSolution(_U(), subFolder, folder, fieldname);
-    }
-    void exportP(std::string& subFolder, std::string& folder, std::string& fieldname)
-    {
-        ITHACAstream::exportSolution(_p(), subFolder, folder, fieldname);
-    }
-    void changeViscosity(scalar viscosity)
-    {
-        change_viscosity(viscosity);
-    }
+			_runTime().write();
+			_runTime().printExecutionTime(Info);
+		}
+		Info<< "End\n" << endl;
+	}
+//        _pimple().loop();
+//        Vector<double> uresidual_v(0, 0, 0);
+//        scalar csolve = 0;
+//
+//		// Variable that can be changed
+//        turbulence->read();
+//        std::ofstream res_os;
+//        res_os.open("./ITHACAoutput/Offline/residuals", std::ios_base::app);
+//        Info << "Time = " << _runTime().timeName() << nl << endl;
+//        {
+//#include "UEqn.H"
+//#include "pEqn.H"
+//            scalar C = 0;
+//
+//            for (label i = 0; i < 3; i++)
+//            {
+//                if (C < uresidual_v[i])
+//                {
+//                    C = uresidual_v[i];
+//                }
+//            }
+//
+//            uresidual = C;
+//            residual = max(presidual, uresidual);
+//            Info << "\nResidual: " << residual << endl << endl;
+//        }
+//		_pimple.correct();
+//        _laminarTransport().correct();
+//        turbulence->correct();
+//        csolve = csolve + 1;
+//        Info << "ExecutionTime = " << _runTime().elapsedCpuTime() << " s"
+//             << "  ClockTime = " << _runTime().elapsedClockTime() << " s"
+//             << nl << endl;
+//    }
+//    scalar getResP()
+//    {
+//        return presidual;
+//    }
+//    scalar getResU()
+//    {
+//        return uresidual;
+//    }
+//    scalar getRes()
+//    {
+//        return residual;
+//    }
+//    void restart()
+//    {
+//        UnsteadyNSTurb::restart();
+//        residual = 1;
+//        uresidual = 1;
+//        presidual = 1;
+//    }
+//    void exportU(std::string& subFolder, std::string& folder, std::string& fieldname)
+//    {
+//        ITHACAstream::exportSolution(_U(), subFolder, folder, fieldname);
+//    }
+//    void exportP(std::string& subFolder, std::string& folder, std::string& fieldname)
+//    {
+//        ITHACAstream::exportSolution(_p(), subFolder, folder, fieldname);
+//    }
+//    void changeViscosity(scalar viscosity)
+//    {
+//        change_viscosity(viscosity);
+//    }
 };
 
 PYBIND11_MODULE(pimpleFOAM_pybind, m)
@@ -290,16 +355,16 @@ PYBIND11_MODULE(pimpleFOAM_pybind, m)
     .def("printU", &pimpleFOAM_pybind::printU)
     .def("printP", &pimpleFOAM_pybind::printP)
     .def("printPhi", &pimpleFOAM_pybind::printPhi)
-    .def("solveOneStep", &pimpleFOAM_pybind::solveOneStep)
-    .def("getResidual", &pimpleFOAM_pybind::getResidual, py::return_value_policy::reference_internal)
-    .def("setU", &pimpleFOAM_pybind::setU, py::return_value_policy::reference_internal)
-    .def("setP", &pimpleFOAM_pybind::setP, py::return_value_policy::reference_internal)
-    .def("restart", &pimpleFOAM_pybind::restart)
-    .def("getResU", &pimpleFOAM_pybind::getResU)
-    .def("getResP", &pimpleFOAM_pybind::getResP)
-    .def("getRes", &pimpleFOAM_pybind::getRes)
-    .def("exportU", &pimpleFOAM_pybind::exportU)
-    .def("exportP", &pimpleFOAM_pybind::exportP)
-    .def("changeViscosity", &pimpleFOAM_pybind::changeViscosity)
+    .def("solveAll", &pimpleFOAM_pybind::solveAll)
+//    .def("getResidual", &pimpleFOAM_pybind::getResidual, py::return_value_policy::reference_internal)
+//    .def("setU", &pimpleFOAM_pybind::setU, py::return_value_policy::reference_internal)
+//    .def("setP", &pimpleFOAM_pybind::setP, py::return_value_policy::reference_internal)
+//    .def("restart", &pimpleFOAM_pybind::restart)
+//    .def("getResU", &pimpleFOAM_pybind::getResU)
+//    .def("getResP", &pimpleFOAM_pybind::getResP)
+//    .def("getRes", &pimpleFOAM_pybind::getRes)
+//    .def("exportU", &pimpleFOAM_pybind::exportU)
+//    .def("exportP", &pimpleFOAM_pybind::exportP)
+//    .def("changeViscosity", &pimpleFOAM_pybind::changeViscosity)
     ;
 }

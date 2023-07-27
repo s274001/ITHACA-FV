@@ -18,29 +18,56 @@ FoamFile
 EigenSolver eigen;
 
 // Number of modes to output and to use for projection
-NmodesUout 15;
-NmodesUproj 10;
-NmodesPout 15;
-NmodesPproj 10;
-NmodesSUPout 15;
-NmodesSUPproj 12;
+NmodesUout 50;
+NmodesUproj 50;
+NmodesPout 50;
+NmodesPproj 50;
+NmodesSUPout 50;
+NmodesSUPproj 50;
 
-// Output format to save market vectors.
-OutPrecision 20;
-OutType fixed;
+// Eddy viscosity modes (for turbulence treatment)
+//NmodesNUTout 50;
 
-// Specific problem of a stationary case
-tolerance 1e-5;
+// Old script variables
+//NmodesProject 50;
+//NmodesMatrixRec 50;
+
+// Boundary method
+bcMethod penalty;
+
+// Penalty factor values
+penaltyFactor 1;
+
+// eddy viscosity coefficients computation method (for turbulence treatment)
+//viscCoeff RBF;
+
+// radius of infulence of the RBF functions
+//RBFradius 0.0260;
+
+// Finite difference scheme order for the time derivative
+timeDerivativeSchemeOrder second;
+
+// Online velocity (for ROM)
+//U_BC 5;
+//romStartTime 0;
+//romTimeStep 0.0004;
+//romEndTime 8;
+
 
 // Export Reduced Matrices
 exportPython 1;
 exportMatlab 1;
-exportTxt 1;
+exportTxt 0;
 
-bcMethod lift;
+
+// Output format to save market vectors.
+OutPrecision 20;
+OutType fixed;
 
 POD_U L2;
 POD_p L2;
 POD_Usup L2;
 
 normalizationNorm L2;
+
+fluxMethod  inconsistent;

@@ -42,6 +42,6 @@ _fvOptions().constrain(UEqn);
 
 if (_pimple().momentumPredictor())
 {
-    uresidual_v = solve(UEqn == -fvc::grad(_p())).initialResidual();
+    solve(UEqn == -fvc::grad(_p()));
     _fvOptions().correct(_U());
 }
