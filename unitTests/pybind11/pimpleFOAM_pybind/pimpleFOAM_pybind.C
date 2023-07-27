@@ -224,6 +224,7 @@ public:
 	(
 		_runTime().controlDict().getOrDefault<scalar>("deltaT", 0.0002)
 	);
+		Info<< "Delta T = " << _runTime().deltaTValue() << nl << endl;
 
 
 
@@ -243,66 +244,32 @@ public:
 				_runTime().controlDict().getOrDefault<scalar>("deltaT", 0.0002)
 			);
 
-			Info<< "Delta T = " << _runTime().deltaTValue() << nl << endl;
 
 			++_runTime();
 
         	Info << "Time = " << _runTime().timeName() << nl << endl;
 
 			// Pressure-velocity PIMPLE corrector loop
-			_pimple().loop();
+			while (_pimple().loop())
 			{
 #include "UEqn.H"
 				// Pressure corrector loop
-				_pimple().correct();
+				while (_pimple().correct())
 				{
 #include "pEqn.H"
 				}
 				_laminarTransport().correct();
 				turbulence->correct();
-			}
         	Info << "ExecutionTime = " << _runTime().elapsedCpuTime() << " s"
              << "  ClockTime = " << _runTime().elapsedClockTime() << " s"
              << nl << endl;
 			_runTime().write();
-			_runTime().printExecutionTime(Info);
+
+
+			}
 		}
 		Info<< "End\n" << endl;
 	}
-//        _pimple().loop();
-//        Vector<double> uresidual_v(0, 0, 0);
-//        scalar csolve = 0;
-//
-//		// Variable that can be changed
-//        turbulence->read();
-//        std::ofstream res_os;
-//        res_os.open("./ITHACAoutput/Offline/residuals", std::ios_base::app);
-//        Info << "Time = " << _runTime().timeName() << nl << endl;
-//        {
-//#include "UEqn.H"
-//#include "pEqn.H"
-//            scalar C = 0;
-//
-//            for (label i = 0; i < 3; i++)
-//            {
-//                if (C < uresidual_v[i])
-//                {
-//                    C = uresidual_v[i];
-//                }
-//            }
-//
-//            uresidual = C;
-//            residual = max(presidual, uresidual);
-//            Info << "\nResidual: " << residual << endl << endl;
-//        }
-//		_pimple.correct();
-//        _laminarTransport().correct();
-//        turbulence->correct();
-//        csolve = csolve + 1;
-//        Info << "ExecutionTime = " << _runTime().elapsedCpuTime() << " s"
-//             << "  ClockTime = " << _runTime().elapsedClockTime() << " s"
-//             << nl << endl;
-//    }
 //    scalar getResP()
 //    {
 //        return presidual;

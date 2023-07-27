@@ -35,7 +35,7 @@
 //	{
 //		phiHbyA += _MRF().zeroFilter(fvc::interpolate(rAU));
 //	}
-	phiHbyA += _MRF().zeroFilter(fvc::interpolate(rAU));
+//	phiHbyA += _MRF().zeroFilter(fvc::interpolate(rAU));
     _MRF().makeRelative(phiHbyA);
 
     adjustPhi(phiHbyA, _U(), _p());
