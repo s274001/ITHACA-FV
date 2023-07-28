@@ -30,7 +30,6 @@ SourceFiles
 #include "singlePhaseTransportModel.H"
 #include "turbulentTransportModel.H"
 #include "pimpleControl.H"
-#include "CorrectPhi.H"
 #include "fvOptions.H"
 #include "IOmanip.H"
 #include "Time.H"
@@ -88,6 +87,7 @@ public:
         pimpleControl& pimple = _pimple();
 #include "createFields.H"
 #include "createFvOptions.H"
+#include "readTimeControls.H"
         turbulence->validate();
         ITHACAdict = new IOdictionary
         (
@@ -100,7 +100,6 @@ public:
                 IOobject::NO_WRITE
             )
         );
-//		tolerance = ITHACAdict->lookupOrDefault<scalar>("tolerance", 1e-5);
 		maxIter = ITHACAdict->lookupOrDefault<scalar>("maxIter", 1000);
         bcMethod = ITHACAdict->lookupOrDefault<word>("bcMethod", "penalty");
         M_Assert(bcMethod == "lift" || bcMethod == "penalty" || bcMethod == "none",
@@ -112,6 +111,7 @@ public:
         offline = ITHACAutilities::check_off();
         podex = ITHACAutilities::check_pod();
         supex = ITHACAutilities::check_sup();
+		Info<< "Delta T = " << _runTime().controlDict().getOrDefault<scalar>("deltaT", 1) << nl << endl;
     }
 
     ~pimpleFOAM_pybind() {};
@@ -130,6 +130,18 @@ public:
         Eigen::Map<Eigen::MatrixXd> Phieig(Foam2Eigen::field2EigenMap(_phi()));
         return std::move(Phieig);
     }
+	double getDeltaT()
+	{
+		return _runTime().controlDict().getOrDefault<scalar>("deltaT", 0.04);
+	}
+	double getStartTime()
+	{
+		return _runTime().controlDict().getOrDefault<scalar>("startTime", 0);
+	}
+	double getEndTime()
+	{
+		return _runTime().controlDict().getOrDefault<scalar>("endTime", 1);
+	}
     void printU()
     {
         Info << _U() << endl;
@@ -215,6 +227,31 @@ public:
 //        res << resU, resP;
 //        return res;
 //    }
+
+	void solveOneTimeStep()
+    {
+    #include "addCheckCaseOptions.H"
+		++_runTime();
+			// Pressure-velocity PIMPLE corrector loop
+		while (_pimple().loop())
+		{
+ 			#include "UEqn.H"
+			// Pressure corrector loop
+			while (_pimple().correct())
+			{
+ 			#include "pEqn.H"
+			}
+			_laminarTransport().correct();
+			turbulence->correct();
+		Info << "ExecutionTime = " << _runTime().elapsedCpuTime() << " s"
+    	 << "  ClockTime = " << _runTime().elapsedClockTime() << " s"
+    	 << nl << endl;
+        Info << "Time = " << _runTime().timeName() << nl << endl;
+		_runTime().write();
+
+		}
+	}
+
     void solveAll()
     {
     #include "addCheckCaseOptions.H"
@@ -289,18 +326,18 @@ public:
 //        uresidual = 1;
 //        presidual = 1;
 //    }
-//    void exportU(std::string& subFolder, std::string& folder, std::string& fieldname)
-//    {
-//        ITHACAstream::exportSolution(_U(), subFolder, folder, fieldname);
-//    }
-//    void exportP(std::string& subFolder, std::string& folder, std::string& fieldname)
-//    {
-//        ITHACAstream::exportSolution(_p(), subFolder, folder, fieldname);
-//    }
-//    void changeViscosity(scalar viscosity)
-//    {
-//        change_viscosity(viscosity);
-//    }
+    void exportU(std::string& subFolder, std::string& folder, std::string& fieldname)
+    {
+        ITHACAstream::exportSolution(_U(), subFolder, folder, fieldname);
+    }
+    void exportP(std::string& subFolder, std::string& folder, std::string& fieldname)
+    {
+        ITHACAstream::exportSolution(_p(), subFolder, folder, fieldname);
+    }
+    void changeViscosity(scalar viscosity)
+    {
+        change_viscosity(viscosity);
+    }
 };
 
 PYBIND11_MODULE(pimpleFOAM_pybind, m)
@@ -318,20 +355,24 @@ PYBIND11_MODULE(pimpleFOAM_pybind, m)
     py::arg("args") = std::vector<std::string> { "." })
     .def("getU", &pimpleFOAM_pybind::getU, py::return_value_policy::reference_internal)
     .def("getP", &pimpleFOAM_pybind::getP, py::return_value_policy::reference_internal)
-    .def("getPhi", &pimpleFOAM_pybind::getP, py::return_value_policy::reference_internal)
+    .def("getPhi", &pimpleFOAM_pybind::getPhi, py::return_value_policy::reference_internal)
+    .def("getDeltaT", &pimpleFOAM_pybind::getDeltaT, py::return_value_policy::reference_internal)
+    .def("getStartTime", &pimpleFOAM_pybind::getStartTime, py::return_value_policy::reference_internal)
+    .def("getEndTime", &pimpleFOAM_pybind::getEndTime, py::return_value_policy::reference_internal)
     .def("printU", &pimpleFOAM_pybind::printU)
     .def("printP", &pimpleFOAM_pybind::printP)
     .def("printPhi", &pimpleFOAM_pybind::printPhi)
     .def("solveAll", &pimpleFOAM_pybind::solveAll)
+    .def("solveOneTimeStep", &pimpleFOAM_pybind::solveOneTimeStep)
 //    .def("getResidual", &pimpleFOAM_pybind::getResidual, py::return_value_policy::reference_internal)
-//    .def("setU", &pimpleFOAM_pybind::setU, py::return_value_policy::reference_internal)
-//    .def("setP", &pimpleFOAM_pybind::setP, py::return_value_policy::reference_internal)
+    .def("setU", &pimpleFOAM_pybind::setU, py::return_value_policy::reference_internal)
+    .def("setP", &pimpleFOAM_pybind::setP, py::return_value_policy::reference_internal)
 //    .def("restart", &pimpleFOAM_pybind::restart)
 //    .def("getResU", &pimpleFOAM_pybind::getResU)
 //    .def("getResP", &pimpleFOAM_pybind::getResP)
 //    .def("getRes", &pimpleFOAM_pybind::getRes)
-//    .def("exportU", &pimpleFOAM_pybind::exportU)
-//    .def("exportP", &pimpleFOAM_pybind::exportP)
-//    .def("changeViscosity", &pimpleFOAM_pybind::changeViscosity)
+    .def("exportU", &pimpleFOAM_pybind::exportU)
+    .def("exportP", &pimpleFOAM_pybind::exportP)
+    .def("changeViscosity", &pimpleFOAM_pybind::changeViscosity)
     ;
 }
