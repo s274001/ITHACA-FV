@@ -358,7 +358,7 @@ int main(int argc, char* argv[])
     labelList boxIndices = ITHACAutilities::getIndicesFromBox(example._mesh(),
                            movPat, Box,
                            points2Move);
-
+    example.linearMovePts(37.5, 1.25, 2.05, points2Move);
     for (int j = 0; j < boxIndices.size(); j++)
     {
         example.curX[boxIndices[j]] = points2Move[j];
